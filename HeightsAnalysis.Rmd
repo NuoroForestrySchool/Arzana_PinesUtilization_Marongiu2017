@@ -1,0 +1,62 @@
+---
+title: "Azana - Pineta - 2017 Marongiu * Analisi altezze"
+output: html_notebook
+date: 25 nov 2017
+author: Roberto Scotti
+---
+
+```{r setup, echo=FALSE}
+library(tidyverse)
+library(magrittr)
+# file <- "C:\\Users\\ro\\GoogleDrive2\\DocumentiGDuniss\\02-RICERCA\\Marongiu_Arzana_pineta\\DATI_ALTEZZE_CANALI_ESCA.xlsx"
+file <- "DATI_ALTEZZE_CANALI_ESCA.xlsx"
+df <- readxl::read_excel(file, sheet = "DATI")
+names(df) <- make.names(names(df))
+df <- df %>%
+  fill(GRADONE.AREA, N..SCHEDA) %>%
+  replace_na(list(BIFORCAZIONE = "no", MARTELLATA = "no"))
+sum(is.na.data.frame(df))  ### 0
+
+```
+
+## Tabelle di contingenza, distribuzione dei casi
+
+```{r}
+df <- df %>% rename(CF = CONDIZIONE.FITOSANITARIA, BIF = BIFORCAZIONE )
+df %$% table(CF, BIF, MARTELLATA, SPECIE)
+
+```
+
+## Analisi sequenziale
+
+Inizialmente sono considerati tutti i fattori potenzialmente di interesse.
+
+```{r process1}
+summary(fit <- lm(formula = ALTEZZA ~ (SPECIE + log(D_1.30):SPECIE):(CF*BIF), 
+                  data = df))
+
+```
+
+Successivamente vengono eliminate le variabili che non mostrano influenza rilevante.
+
+```{r process2}
+summary(fit <- lm(formula = ALTEZZA ~ SPECIE + log(D_1.30):SPECIE:CF, 
+                  data = df))
+summary(fit <- lm(formula = ALTEZZA ~ log(D_1.30):SPECIE:CF, 
+                  data = df))
+
+```
+
+## Conclusioni
+
+Il livello di incertezza della stima e' rilevante: maggiore di 2 m!
+
+```{r conclusione, fig.width=7, fig.height=6}
+ggplot(df) +  
+  geom_point(aes(D_1.30, ALTEZZA, colour = SPECIE, 
+                 shape = MARTELLATA), alpha = .3, size = 3) +
+  scale_shape_manual(values = c(16, 9)) +
+  geom_line(aes(D_1.30, predict(fit), colour = SPECIE, 
+                linetype = CF), size = 2)
+```
+
